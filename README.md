@@ -110,9 +110,7 @@ L'architecture de déploiement de Keycloak en cluster avec Kubernetes implique p
 
 ### Composants Principaux
 
-1. **
-
-Kubernetes Cluster**:
+1. **Kubernetes Cluster**:
    - **Nodes**: Machines physiques ou virtuelles qui exécutent les conteneurs.
    - **Pods**: Unité de base de déploiement contenant un ou plusieurs conteneurs.
    - **StatefulSets**: Gestion des applications avec état, utile pour Keycloak.
