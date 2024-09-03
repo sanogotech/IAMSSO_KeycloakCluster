@@ -223,3 +223,192 @@ networks:
 Le déploiement de cet environnement de recette minimaliste avec MySQL Galera et Keycloak est conçu pour offrir une solution robuste pour tester les configurations et les performances avant la mise en production. En suivant les bonnes pratiques recommandées et en veillant à la gestion des risques, vous pouvez assurer une transition fluide et sécurisée vers un environnement de production.
 
 N'hésitez pas à adapter les configurations et les ressources en fonction des besoins spécifiques de votre organisation pour obtenir les meilleurs résultats possibles.
+
+
+Pour s'assurer que chaque nœud redémarre automatiquement après un redémarrage du serveur, vous pouvez configurer les services Docker pour qu'ils se redémarrent automatiquement en cas d'échec ou de redémarrage du système. Voici comment procéder pour Keycloak et MySQL Galera sur Docker avec `docker-compose` :
+
+### 1. Configuration de la Politique de Redémarrage dans `docker-compose.yml`
+
+Vous pouvez utiliser les options de redémarrage intégrées de Docker pour garantir que les conteneurs redémarrent automatiquement. Voici comment ajouter ces options dans votre fichier `docker-compose.yml`.
+
+#### Exemple pour MySQL Galera Cluster
+
+```yaml
+version: '3.8'
+
+services:
+  mysql-galera-node1:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - mysql_node1_data:/var/lib/mysql
+      - ./my-node1.cnf:/etc/mysql/my.cnf
+    networks:
+      - galera_net
+    restart: always  # Assure le redémarrage automatique du conteneur
+
+  mysql-galera-node2:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - mysql_node2_data:/var/lib/mysql
+      - ./my-node2.cnf:/etc/mysql/my.cnf
+    networks:
+      - galera_net
+    restart: always  # Assure le redémarrage automatique du conteneur
+
+  mysql-galera-node3:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - mysql_node3_data:/var/lib/mysql
+      - ./my-node3.cnf:/etc/mysql/my.cnf
+    networks:
+      - galera_net
+    restart: always  # Assure le redémarrage automatique du conteneur
+
+volumes:
+  mysql_node1_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      device: '/path/to/storage/mysql_node1'
+      o: 'bind'
+  mysql_node2_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      device: '/path/to/storage/mysql_node2'
+      o: 'bind'
+  mysql_node3_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      device: '/path/to/storage/mysql_node3'
+      o: 'bind'
+
+networks:
+  galera_net:
+    driver: bridge
+```
+
+#### Exemple pour Keycloak
+
+```yaml
+version: '3.8'
+
+services:
+  keycloak-node1:
+    image: quay.io/keycloak/keycloak:21.0.0
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql-galera-node1
+      DB_PORT: 3306
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+    ports:
+      - "8080:8080"
+    networks:
+      - keycloak_net
+    restart: always  # Assure le redémarrage automatique du conteneur
+
+  keycloak-node2:
+    image: quay.io/keycloak/keycloak:21.0.0
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql-galera-node1
+      DB_PORT: 3306
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+    ports:
+      - "8081:8080"
+    networks:
+      - keycloak_net
+    restart: always  # Assure le redémarrage automatique du conteneur
+
+networks:
+  keycloak_net:
+    driver: bridge
+```
+
+### 2. Configuration des Services Système (Optionnelle)
+
+En plus de la configuration de `docker-compose`, vous pouvez également configurer les services système pour qu'ils redémarrent automatiquement au démarrage du serveur. Voici comment faire cela sur un système Linux utilisant `systemd` :
+
+#### Création de Fichiers de Service Systemd pour Docker
+
+1. Créez un fichier de service pour chaque conteneur dans `/etc/systemd/system/` :
+
+   - Pour MySQL Galera :
+     ```ini
+     [Unit]
+     Description=MySQL Galera Cluster Node
+     After=network.target
+
+     [Service]
+     Restart=always
+     ExecStart=/usr/bin/docker-compose -f /path/to/your/docker-compose.yml up
+     ExecStop=/usr/bin/docker-compose -f /path/to/your/docker-compose.yml down
+     WorkingDirectory=/path/to/your
+     User=your-user
+     Group=your-group
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+
+   - Pour Keycloak :
+     ```ini
+     [Unit]
+     Description=Keycloak Service
+     After=network.target
+
+     [Service]
+     Restart=always
+     ExecStart=/usr/bin/docker-compose -f /path/to/your/docker-compose.yml up
+     ExecStop=/usr/bin/docker-compose -f /path/to/your/docker-compose.yml down
+     WorkingDirectory=/path/to/your
+     User=your-user
+     Group=your-group
+
+     [Install]
+     WantedBy=multi-user.target
+     ```
+
+2. Rechargez les fichiers de configuration `systemd` et activez les services :
+
+   ```sh
+   sudo systemctl daemon-reload
+   sudo systemctl enable mysql-galera.service
+   sudo systemctl enable keycloak.service
+   ```
+
+3. Démarrez les services :
+
+   ```sh
+   sudo systemctl start mysql-galera.service
+   sudo systemctl start keycloak.service
+   ```
+
+En suivant ces configurations, chaque nœud de votre environnement de recette sera automatiquement redémarré après un redémarrage du serveur ou en cas d'échec.
