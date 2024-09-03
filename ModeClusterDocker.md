@@ -412,3 +412,147 @@ En plus de la configuration de `docker-compose`, vous pouvez également configur
    ```
 
 En suivant ces configurations, chaque nœud de votre environnement de recette sera automatiquement redémarré après un redémarrage du serveur ou en cas d'échec.
+
+
+Pour assurer un déploiement efficace et sécurisé avec Docker, voici les 10 bonnes pratiques clés à mettre en œuvre dans vos configurations Docker. Ces pratiques aident à garantir la performance, la sécurité, et la résilience de vos conteneurs.
+
+### Top 10 des Bonnes Pratiques pour la Configuration Docker
+
+1. **Utilisation de l'Option `restart` :**
+   - **Pratique :** Configurer le mode de redémarrage des conteneurs pour garantir leur disponibilité en cas d'échec ou de redémarrage du système.
+   - **Exemple :** `restart: always` dans le fichier `docker-compose.yml`.
+
+2. **Définition des Limites de Ressources :**
+   - **Pratique :** Limiter l'utilisation de CPU et de mémoire pour éviter que les conteneurs consomment trop de ressources et impactent les autres services.
+   - **Exemple :**
+     ```yaml
+     resources:
+       limits:
+         cpus: "1.0"
+         memory: "2G"
+     ```
+
+3. **Gestion des Secrets et Variables d'Environnement :**
+   - **Pratique :** Utiliser des fichiers `.env` ou des secrets Docker pour gérer les informations sensibles de manière sécurisée.
+   - **Exemple :** `env_file: .env`
+
+4. **Isolation des Réseaux :**
+   - **Pratique :** Créer des réseaux Docker dédiés pour les différents groupes de services afin de minimiser les interférences et améliorer la sécurité.
+   - **Exemple :**
+     ```yaml
+     networks:
+       app_net:
+         driver: bridge
+     ```
+
+5. **Volumes pour la Persistance des Données :**
+   - **Pratique :** Utiliser des volumes Docker pour stocker les données persistantes afin qu'elles ne soient pas perdues lors du redémarrage des conteneurs.
+   - **Exemple :**
+     ```yaml
+     volumes:
+       data_volume:
+     ```
+
+6. **Optimisation des Images Docker :**
+   - **Pratique :** Utiliser des images légères et optimiser le Dockerfile pour minimiser la taille des images et accélérer les temps de déploiement.
+   - **Exemple :** Utiliser `alpine` comme image de base si possible.
+
+7. **Gestion des Logs :**
+   - **Pratique :** Configurer la gestion des logs pour une analyse facile et une surveillance efficace. Vous pouvez rediriger les logs vers des fichiers ou utiliser un système centralisé.
+   - **Exemple :**
+     ```yaml
+     logging:
+       driver: "json-file"
+       options:
+         max-size: "10m"
+         max-file: "3"
+     ```
+
+8. **Vérification des Santé des Conteneurs :**
+   - **Pratique :** Définir des vérifications de santé (`healthcheck`) pour surveiller l'état de vos conteneurs et assurer qu'ils fonctionnent correctement.
+   - **Exemple :**
+     ```yaml
+     healthcheck:
+       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+       interval: 30s
+       retries: 3
+     ```
+
+9. **Exécution de Conteneurs avec Moins de Privilèges :**
+   - **Pratique :** Configurer les conteneurs pour qu'ils s'exécutent avec le moins de privilèges possibles en utilisant des utilisateurs non-root et des options de sécurité.
+   - **Exemple :**
+     ```yaml
+     user: "1000:1000"
+     ```
+
+10. **Contrôle de Version et Validation des Images :**
+    - **Pratique :** Utiliser des versions spécifiques des images Docker et valider les images avant leur déploiement en production pour éviter les surprises.
+    - **Exemple :** Utiliser `image: quay.io/keycloak/keycloak:21.0.0` plutôt que `latest`.
+
+### Exemple Complet d'un Fichier `docker-compose.yml` avec les Bonnes Pratiques
+
+```yaml
+version: '3.8'
+
+services:
+  mysql-galera-node1:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: keycloak
+      MYSQL_USER: keycloak
+      MYSQL_PASSWORD: password
+    volumes:
+      - mysql_node1_data:/var/lib/mysql
+      - ./my-node1.cnf:/etc/mysql/my.cnf
+    networks:
+      - galera_net
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      retries: 3
+
+  keycloak-node1:
+    image: quay.io/keycloak/keycloak:21.0.0
+    environment:
+      KEYCLOAK_USER: admin
+      KEYCLOAK_PASSWORD: admin
+      DB_VENDOR: MYSQL
+      DB_ADDR: mysql-galera-node1
+      DB_PORT: 3306
+      DB_DATABASE: keycloak
+      DB_USER: keycloak
+      DB_PASSWORD: password
+    ports:
+      - "8080:8080"
+    networks:
+      - keycloak_net
+    restart: always
+    resources:
+      limits:
+        cpus: "1.0"
+        memory: "2G"
+    user: "1000:1000"
+
+volumes:
+  mysql_node1_data:
+    driver: local
+    driver_opts:
+      type: 'none'
+      device: '/path/to/storage/mysql_node1'
+      o: 'bind'
+
+networks:
+  galera_net:
+    driver: bridge
+  keycloak_net:
+    driver: bridge
+```
+
+En appliquant ces bonnes pratiques, vous pouvez améliorer la gestion, la sécurité, et la performance de vos déploiements Docker.
